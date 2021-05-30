@@ -3,3 +3,5 @@
 #Data: 09/06/2021
 
 # JOGO
+
+import pygame

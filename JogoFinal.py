@@ -15,13 +15,22 @@ SCREEN_HEIGHT = int(SCREEN_WIDTH * 0.8)
 screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
 pygame.display.set_caption('Insperex')
 
-
+#Set Framerate
+clock = pygame.time.Clock()
+FPS = 60
 
 
 #define player action variables
 moving_left = False
 moving_right = False
 
+
+
+#define colors
+BG = (144, 201, 120)
+
+def draw_bg():
+    screen.fill(BG)
 
 
 
@@ -74,6 +83,9 @@ player = Soldier( 200, 200, 3, 5)
 run = True
 while run:
 
+    clock.tick(FPS)
+
+    draw_bg()
 
     player.draw()
     

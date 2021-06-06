@@ -6,6 +6,7 @@
 
 import pygame
 import os
+import random
 
 pygame.init()
 
@@ -22,6 +23,7 @@ FPS = 60
 
 # definindo variaveis do jogo
 GRAVITY = 0.75
+TILE_SIZE = 40
 
 
 #define player action variables
@@ -32,9 +34,29 @@ shoot = False
 # carregar imagens bala
 bullet_img = pygame.image.load('IMG/bomba/bomba.png').convert_alpha()
 
+# pegando caixas
+health_box = pygame.image.load('IMG/vida/vida.png').convert_alpha()
+ammo_box = pygame.image.load('IMG/moeda/moeda.png').convert_alpha()
+item_boxes = {
+    'Health' : health_box,
+    'Ammo' : ammo_box,
+}
+
+
 #define colors
 BG = (144, 201, 120)
 RED = (255, 0, 0)
+WHITE = (255, 255, 255)
+GREEN = (0, 255, 0)
+BLACK = (0, 0, 0)
+
+# definindo fonte
+font = pygame.font.SysFont('futura', 30)
+
+def draw_text(text, font, text_col, x, y):
+    img = font.render(text, True, text_col)
+    screen.blit(img, (x,y))
+
 
 def draw_bg():
     screen.fill(BG)
@@ -63,6 +85,11 @@ class Soldier(pygame.sprite.Sprite):
         self.frame_index = 0
         self.action = 0
         self.update_time = pygame.time.get_ticks()
+        # variaveis especificas para ai
+        self.move_counter = 0
+        self.vision = pygame.Rect(0, 0, 150, 20)
+        self.idling = False
+        self.idling_counter = 0
 
         #carregando as imagens 
         animation_types = ['parado', 'andando', 'pulando', 'morrendo']
@@ -128,18 +155,53 @@ class Soldier(pygame.sprite.Sprite):
     def shoot(self):
         if self.shoot_cooldown == 0 and self.ammo > 0:
             self.shoot_cooldown = 20
-            bullet = Bullet(self.rect.centerx + (0.6 * self.rect.size[0] * self.direction), self.rect.centery, self.direction)
+            bullet = Bullet(self.rect.centerx + (0.80 * self.rect.size[0] * self.direction), self.rect.centery, self.direction)
             bullet_group.add(bullet)
             # gastando munição
             self.ammo -= 1
+    
+    def ai(self):
+        if self.alive and player.alive:
+            if self.idling == False and random.randint(1, 200) == 1:
+                self.update_action(0)#0: parado
+                self.idling = True
+                self.idling_counter = 50
+            # vendo se o ai esta perto do jogador
+            if self.vision.colliderect(player.rect):
+                # parar de andar ao ver jogador
+                self.update_action(0)#0: parado
+                # atirar
+                self.shoot()
+            else:
+                if self.idling == False:
+                    if self.direction == 1:
+                        ai_moving_right = True
+                    else:
+                        ai_moving_right = False
+                    ai_moving_left = not ai_moving_right
+                    self.move(ai_moving_left, ai_moving_right)
+                    self.update_action(1)# 1: andando
+                    self.move_counter += 1
+                    # atualizando a visão para que acompanhe o inimigo
+                    self.vision.center = (self.rect.centerx + 75 * self.direction, self.rect.centery)
+                    
+                    if self.move_counter > TILE_SIZE:
+                        self.direction *= -1
+                        self.move_counter *= -1
+                else:
+                    self.idling_counter -= 1
+                    if self.idling_counter <= 0:
+                        self.idling = False
+             
+
 
     def update_animation(self):
         # atualizando animacao
-        ANIMATIN_COOLDOWN = 100
+        ANIMATION_COOLDOWN = 100
         # atualizando imagem dependendo da imagem atual
         self.image = self.animation_list[self.action][self.frame_index]
         # verificando se o tempo passou da ultima atualizacao
-        if pygame.time.get_ticks() - self.update_time > ANIMATIN_COOLDOWN:
+        if pygame.time.get_ticks() - self.update_time > ANIMATION_COOLDOWN:
             self.update_time = pygame.time.get_ticks()
             self.frame_index += 1
         # se as imagens acabarem volta do comeco
@@ -169,6 +231,44 @@ class Soldier(pygame.sprite.Sprite):
 
     def draw(self):
         screen.blit(pygame.transform.flip(self.image, self.flip, False), self.rect)
+
+class ItemBox(pygame.sprite.Sprite):
+    def __init__(self, item_type, x, y):
+        pygame.sprite.Sprite.__init__(self)
+        self.item_type = item_type
+        self.image = item_boxes[self.item_type]
+        self.rect = self.image.get_rect()
+        self.rect.midtop = (x + TILE_SIZE // 2, y + TILE_SIZE - self.image.get_height())
+    
+    def update(self):
+        # verificando se o jogador pegou a caixa
+        if pygame.sprite.collide_rect(self, player):
+            # verificando qual foi o item
+            if self.item_type == 'Health':
+                player.health += 15
+                if player.health > player.max_health:
+                    player.health   = player.max_health
+            elif self.item_type == 'Ammo':
+                player.ammo += 5
+            # apagando a caixa após pega-lá
+            self.kill()
+
+class HealthBar():
+    def __init__(self, x, y, health, max_health):
+        self.x = x
+        self.y = y
+        self.health = health
+        self.max_health = max_health
+    
+    def draw(self, health):
+        # atualizando para nova vida
+        self.health = health
+        # calculando o ratio da vida
+        ratio = self.health / self.max_health
+        pygame.draw.rect(screen, BLACK, (self.x -2, self.y - 2, 154, 24))
+        pygame.draw.rect(screen, RED, (self.x, self.y, 150, 20))
+        pygame.draw.rect(screen, GREEN, (self.x, self.y, 150 * ratio, 20))
+        
 
 class Bullet(pygame.sprite.Sprite):
     def __init__(self, x, y, direction):
@@ -201,12 +301,20 @@ class Bullet(pygame.sprite.Sprite):
 # criando sprite groups
 enemy_group = pygame.sprite.Group()
 bullet_group = pygame.sprite.Group()
+item_box_group = pygame.sprite.Group()
+
+# criando temporiariamente item boxes
+item_box = ItemBox('Health', 100, 260)
+item_box_group.add(item_box)
+item_box = ItemBox('Ammo', 400, 260)
+item_box_group.add(item_box)
 
 
 
-player = Soldier('raposa', 200, 200, 2, 5, 20)
-enemy = Soldier('inimigo', 400, 200, 2, 5, 20)
-enemy2 = Soldier('inimigo', 300, 300, 2, 5, 20)
+player = Soldier('raposa', 200, 200, 1.25, 5, 20)
+health_bar = HealthBar(10, 10, player.health, player.health)
+enemy = Soldier('inimigo', 500, 279, 1.25, 2, 20)
+enemy2 = Soldier('inimigo', 300, 279, 1.25, 2, 20)
 enemy_group.add(enemy)
 enemy_group.add(enemy2)
 
@@ -218,17 +326,28 @@ while run:
     clock.tick(FPS)
 
     draw_bg()
+    # mostrando vida
+    health_bar.draw(player.health)
+    # mostrando munição
+    draw_text('Munição: ', font, WHITE, 10, 35)
+    for x in range(player.ammo):
+        screen.blit(bullet_img, (90 + (x * 10), 40))
+    
 
+    
     player.update()
     player.draw()
 
     for enemy in enemy_group:
+        enemy.ai()
         enemy.update()
         enemy.draw()
 
     # atualizando e desenhando grupos
     bullet_group.update()
+    item_box_group.update()
     bullet_group.draw(screen)
+    item_box_group.draw(screen)
     
     # atualizando ação do jogador
     if player.alive:

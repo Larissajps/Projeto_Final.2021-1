@@ -84,6 +84,7 @@ class Soldier(pygame.sprite.Sprite):
 
     def update(self):
         self.update_animation()
+        self.check_alive()
         # atualizando o cooldown
         if self.shoot_cooldown > 0:
             self.shoot_cooldown -= 1
@@ -143,7 +144,10 @@ class Soldier(pygame.sprite.Sprite):
             self.frame_index += 1
         # se as imagens acabarem volta do comeco
         if self.frame_index >= len(self.animation_list[self.action]):
-            self.frame_index = 0
+            if self.action == 3:
+                self.frame_index = len(self.animation_list[self.action]) -1
+            else:
+                self.frame_index = 0
 
 
     def update_action(self, new_action):
@@ -160,7 +164,7 @@ class Soldier(pygame.sprite.Sprite):
             self.health = 0
             self.speed = 0
             self.alive = False
-            self.update_action()
+            self.update_action(3)
 
 
     def draw(self):
@@ -187,19 +191,24 @@ class Bullet(pygame.sprite.Sprite):
             if player.alive:
                 player.health -= 5
                 self.kill()
-        if pygame.sprite.spritecollide(enemy, bullet_group, False):
-            if enemy.alive:
-                enemy.health -= 25
-                self.kill()
+        for enemy in enemy_group:
+            if pygame.sprite.spritecollide(enemy, bullet_group, False):
+                if enemy.alive:
+                    enemy.health -= 25
+                    self.kill()
 
 
 # criando sprite groups
+enemy_group = pygame.sprite.Group()
 bullet_group = pygame.sprite.Group()
 
 
 
 player = Soldier('raposa', 200, 200, 2, 5, 20)
 enemy = Soldier('inimigo', 400, 200, 2, 5, 20)
+enemy2 = Soldier('inimigo', 300, 300, 2, 5, 20)
+enemy_group.add(enemy)
+enemy_group.add(enemy2)
 
 
 
@@ -212,7 +221,10 @@ while run:
 
     player.update()
     player.draw()
-    enemy.draw()
+
+    for enemy in enemy_group:
+        enemy.update()
+        enemy.draw()
 
     # atualizando e desenhando grupos
     bullet_group.update()

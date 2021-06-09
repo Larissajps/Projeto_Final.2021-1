@@ -1,7 +1,7 @@
 #Equipe: Bruno Marques Li Volsi Falcao e Larissa Jordana de Paula Soares
 #Data: 09/06/2021
 
-# JOGO
+# JOGO InsperEx
 
 import pygame
 from pygame import mixer
@@ -17,7 +17,7 @@ SCREEN_HEIGHT = int(SCREEN_WIDTH * 0.8)
 
 
 screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
-pygame.display.set_caption('Insperex')
+pygame.display.set_caption('InsperEx')
 
 #Set Framerate
 clock = pygame.time.Clock()
@@ -56,11 +56,12 @@ shooting_fx.set_volume(0.5)
 start_img = pygame.image.load('IMG/Inicio.png').convert_alpha()
 exit_img = pygame.image.load('IMG/Saida.png').convert_alpha()
 restart_img = pygame.image.load('IMG/Restart.png').convert_alpha()
+Return_img = pygame.image.load('IMG/Return.png').convert_alpha()
 # Fundo
-pine1_img = pygame.image.load('IMG/Background/pine1.png').convert_alpha()
-pine2_img = pygame.image.load('IMG/Background/pine2.png').convert_alpha()
-mountain_img = pygame.image.load('IMG/Background/mountain.png').convert_alpha()
-sky_img = pygame.image.load('IMG/Background/sky_cloud.png').convert_alpha()
+pine1_img = pygame.image.load('IMG/Background/3.png').convert_alpha()
+pine2_img = pygame.image.load('IMG/Background/2.png').convert_alpha()
+mountain_img = pygame.image.load('IMG/Background/1.png').convert_alpha()
+sky_img = pygame.image.load('IMG/Background/0.png').convert_alpha()
 # imagens de fundo
 img_list = []
 for x in range(TILE_TYPES):
@@ -126,8 +127,8 @@ def reset_level():
 
 
 class Soldier(pygame.sprite.Sprite):
-    def _init_(self, char_type, x, y, scale, speed, ammo):
-        pygame.sprite.Sprite._init_(self)
+    def __init__(self, char_type, x, y, scale, speed, ammo):
+        pygame.sprite.Sprite.__init__(self)
         self.alive = True
         self.char_type = char_type
         self.speed = speed
@@ -458,8 +459,9 @@ class HealthBar():
         
 
 class Bullet(pygame.sprite.Sprite):
-    def _init_(self, x, y, direction):
-        pygame.sprite.Sprite._init_(self)
+
+    def __init__(self, x, y, direction):
+        pygame.sprite.Sprite.__init__(self)
         self.speed = 10
         self.image = bullet_img
         self.rect = self.image.get_rect()
@@ -520,6 +522,8 @@ class Button():
 start_button = Button(SCREEN_WIDTH // 2 - 130, SCREEN_HEIGHT // 2 - 150, start_img, 1)
 exit_button = Button(SCREEN_WIDTH // 2 - 110, SCREEN_HEIGHT // 2 + 50, exit_img, 1)
 restart_button = Button(SCREEN_WIDTH // 2 - 100, SCREEN_HEIGHT // 2 - 50, restart_img, 2)
+Return_button = Button(SCREEN_WIDTH // 2 - 100, SCREEN_HEIGHT // 2 - 50, Return_img, 2)
+
 # criando sprite groups
 enemy_group = pygame.sprite.Group()
 bullet_group = pygame.sprite.Group()
@@ -566,6 +570,7 @@ while run:
     if start_game == False:
         # desenhando menu
         screen.fill(BG)
+
         # add button
         if start_button.draw(screen):
             start_game = True
@@ -631,8 +636,10 @@ while run:
                     world = World()
                     player, health_bar = world.process_data(world_data)
 
+
+
         else:
-            screen_scroll = 0
+            screen__scroll = 0
             if restart_button.draw(screen):
                 bg_scroll = 0
                 world_data = reset_level()
@@ -643,8 +650,10 @@ while run:
                             world_data[x][y] = int(tile)
                 world = World()
                 player, health_bar = world.process_data(world_data)
+            elif exit_button.draw(screen):
+                run = False
 
-        
+
 
     for event in pygame.event.get():
         #quitgame

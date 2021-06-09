@@ -7,6 +7,7 @@
 import pygame
 import os
 import random
+import csv
 
 pygame.init()
 
@@ -23,13 +24,34 @@ FPS = 60
 
 # definindo variaveis do jogo
 GRAVITY = 0.75
-TILE_SIZE = 40
+SCROLL_THRESH = 200
+ROWS = 16
+COLS = 150
+TILE_SIZE = SCREEN_HEIGHT // ROWS 
+TILE_TYPES = 21
+screen_scroll = 0
+bg_scroll = 0
+level = 1
 
 
 #define player action variables
 moving_left = False
 moving_right = False
 shoot = False
+
+# imagens
+pine1_img = pygame.image.load('IMG/Background/pine1.png').convert_alpha()
+pine2_img = pygame.image.load('IMG/Background/pine2.png').convert_alpha()
+mountain_img = pygame.image.load('IMG/Background/mountain.png').convert_alpha()
+sky_img = pygame.image.load('IMG/Background/sky_cloud.png').convert_alpha()
+# imagens de fundo
+img_list = []
+for x in range(TILE_TYPES):
+    img = pygame.image.load(f'IMG/Mundo/{x}.png')
+    img = pygame.transform.scale(img, (TILE_SIZE, TILE_SIZE))
+    img_list.append(img)
+
+
 
 # carregar imagens bala
 bullet_img = pygame.image.load('IMG/bomba/bomba.png').convert_alpha()
@@ -60,7 +82,12 @@ def draw_text(text, font, text_col, x, y):
 
 def draw_bg():
     screen.fill(BG)
-    pygame.draw.line( screen, RED, (0, 300), (SCREEN_WIDTH, 300))
+    width = sky_img.get_width()
+    for x in range(5):
+        screen.blit(sky_img, ((x * width) - bg_scroll * 0.5, 0))
+        screen.blit(mountain_img, ((x * width) - bg_scroll * 0.6, SCREEN_HEIGHT - mountain_img.get_height() - 300))
+        screen.blit(pine1_img, ((x * width) - bg_scroll * 0.7,  SCREEN_HEIGHT - pine1_img.get_height() - 150))
+        screen.blit(pine2_img, ((x * width) - bg_scroll * 0.8, SCREEN_HEIGHT - pine2_img.get_height()))
 
 
 
@@ -107,6 +134,8 @@ class Soldier(pygame.sprite.Sprite):
         self.image = self.animation_list[self.action][self.frame_index]
         self.rect = self.image.get_rect()
         self.rect.center = (x,y)
+        self.width = self.image.get_width()
+        self.height = self.image.get_height()
     
 
     def update(self):
@@ -118,6 +147,7 @@ class Soldier(pygame.sprite.Sprite):
 
     def move(self,moving_left,moving_right):
         #reset moviement variables
+        screen_scroll = 0
         dx = 0
         dy = 0
 
@@ -143,14 +173,44 @@ class Soldier(pygame.sprite.Sprite):
             self.vel_y
         dy += self.vel_y   
 
-        # checando colisão com o chão
-        if self.rect.bottom + dy > 300:
-            dy = 300 - self.rect.bottom 
-            self.in_air = False
+        # verificando colisão
+        for tile in world.obstacle_list:
+            # verificando colião na direção x
+            if tile[1].colliderect(self.rect.x + dx, self.rect.y, self.width, self.height):
+                dx = 0
+                # Se o inimigo atingir a parede ele vira pro outro lado
+                if self.char_type == 'inimigo':
+                    self.direction *= -1
+                    self.move_counter = 0
+            # verificando colisão na direção y
+            if tile[1].colliderect(self.rect.x, self.rect.y + dy, self.width, self.height):
+                # verificando se estou abaixo do chão, pular
+                if self.vel_y < 0:
+                    self.vel_y = 0
+                    dy = tile[1].bottom - self.rect.top
+                # verificando se esta acima do chão, caindo
+                elif self.vel_y >= 0:
+                    self.vel_y = 0
+                    self.in_air = False
+                    dy = tile[1].top - self.rect.bottom
         
+        # verificando se ta indo pra fora do extremo da tela
+        if self.char_type == 'raposa':
+            if self.rect.left + dx < 0 or self.rect.right + dx > SCREEN_WIDTH:
+                dx = 0
+
         #update rectangle position
         self.rect.x += dx
         self.rect.y += dy
+
+        # atualizando rolamento de tela conforme posição do jogador
+        if self.char_type == 'raposa':
+            if (self.rect.right > SCREEN_WIDTH - SCROLL_THRESH and bg_scroll < (world.level_lenght * TILE_SIZE) - SCREEN_WIDTH) or (self.rect.left < SCROLL_THRESH and bg_scroll > abs(dx)):
+                self.rect.x -= dx
+                screen_scroll = -dx
+
+        return screen_scroll
+                
 
     def shoot(self):
         if self.shoot_cooldown == 0 and self.ammo > 0:
@@ -192,7 +252,8 @@ class Soldier(pygame.sprite.Sprite):
                     self.idling_counter -= 1
                     if self.idling_counter <= 0:
                         self.idling = False
-             
+        # rolamento
+        self.rect.x += screen_scroll     
 
 
     def update_animation(self):
@@ -232,6 +293,83 @@ class Soldier(pygame.sprite.Sprite):
     def draw(self):
         screen.blit(pygame.transform.flip(self.image, self.flip, False), self.rect)
 
+class World():
+    def __init__(self):
+        self.obstacle_list = []
+
+    def process_data(self, data):
+        self.level_lenght = len(data[0])
+        # significando cada valor no csv
+        for y, row in enumerate(data):
+            for x, tile in enumerate(row):
+                if tile >=0:
+                    img = img_list[tile]
+                    img_rect = img.get_rect()
+                    img_rect.x = x * TILE_SIZE
+                    img_rect.y = y * TILE_SIZE
+                    tile_data = (img, img_rect)
+                    if tile >= 0 and tile <= 8:
+                        self.obstacle_list.append(tile_data)
+                    elif tile >= 9 and tile <= 10:
+                        water = Water(img, x * TILE_SIZE, y * TILE_SIZE)
+                        water_group.add(water)
+                    elif tile >= 11 and tile <= 14:
+                        decoration = Decoration(img, x * TILE_SIZE, y * TILE_SIZE)
+                        decoration_group.add(decoration)
+                    elif tile == 15: # criando jogador
+                        player = Soldier('raposa', x * TILE_SIZE, y * TILE_SIZE, 1.25, 5, 20)
+                        health_bar = HealthBar(10, 10, player.health, player.health)
+                    elif tile == 16: # criando inimigo
+                        enemy = Soldier('inimigo', 500, 279, 1.25, 2, 20)
+                        enemy_group.add(enemy)
+                    elif tile == 17: # criando munição
+                        item_box = ItemBox('Ammo', x * TILE_SIZE, y * TILE_SIZE)
+                        item_box_group.add(item_box)
+                    elif tile == 18:
+                        pass
+                    elif tile == 19: # criando vida
+                        item_box = ItemBox('Health', x * TILE_SIZE, y * TILE_SIZE)
+                        item_box_group.add(item_box)
+                    elif tile == 20: # criando a saida
+                        exit = Exit(img, x * TILE_SIZE, y * TILE_SIZE)
+                        exit_group.add(exit)
+        return player, health_bar
+
+    def draw(self):
+        for tile in self.obstacle_list:
+            tile[1][0] += screen_scroll
+            screen.blit(tile[0], tile[1])
+
+class Decoration(pygame.sprite.Sprite):
+    def __init__(self, img, x, y):
+        pygame.sprite.Sprite.__init__(self)
+        self.image = img
+        self.rect = self.image.get_rect()
+        self.rect.midtop = (x + TILE_SIZE // 2, y + (TILE_SIZE - self.image.get_height()))
+
+    def update(self):
+        self.rect.x += screen_scroll    
+
+class Water(pygame.sprite.Sprite):
+    def __init__(self, img, x, y):
+        pygame.sprite.Sprite.__init__(self)
+        self.image = img
+        self.rect = self.image.get_rect()
+        self.rect.midtop = (x + TILE_SIZE // 2, y + (TILE_SIZE - self.image.get_height()))
+
+    def update(self):
+        self.rect.x += screen_scroll
+
+class Exit(pygame.sprite.Sprite):
+    def __init__(self, img, x, y):
+        pygame.sprite.Sprite.__init__(self)
+        self.image = img
+        self.rect = self.image.get_rect()
+        self.rect.midtop = (x + TILE_SIZE // 2, y + (TILE_SIZE - self.image.get_height()))
+
+    def update(self):
+        self.rect.x += screen_scroll
+
 class ItemBox(pygame.sprite.Sprite):
     def __init__(self, item_type, x, y):
         pygame.sprite.Sprite.__init__(self)
@@ -241,6 +379,8 @@ class ItemBox(pygame.sprite.Sprite):
         self.rect.midtop = (x + TILE_SIZE // 2, y + TILE_SIZE - self.image.get_height())
     
     def update(self):
+        # rolamento
+        self.rect.x += screen_scroll
         # verificando se o jogador pegou a caixa
         if pygame.sprite.collide_rect(self, player):
             # verificando qual foi o item
@@ -281,10 +421,14 @@ class Bullet(pygame.sprite.Sprite):
 
     def update(self):
         # mexendo a bullet
-        self.rect.x += (self.direction * self.speed)
+        self.rect.x += (self.direction * self.speed) + screen_scroll
         #vendo se a bullet saiu da tela
         if self.rect.right < 0 or self.rect.left > SCREEN_WIDTH:
             self.kill()
+        # verificando colisão com o mapa
+        for tile in world.obstacle_list:
+            if tile[1].colliderect(self.rect):
+                self.kill()
 
         # Verificando a colisão com jogador
         if pygame.sprite.spritecollide(player, bullet_group, False):
@@ -302,21 +446,26 @@ class Bullet(pygame.sprite.Sprite):
 enemy_group = pygame.sprite.Group()
 bullet_group = pygame.sprite.Group()
 item_box_group = pygame.sprite.Group()
-
-# criando temporiariamente item boxes
-item_box = ItemBox('Health', 100, 260)
-item_box_group.add(item_box)
-item_box = ItemBox('Ammo', 400, 260)
-item_box_group.add(item_box)
+decoration_group = pygame.sprite.Group()
+water_group = pygame.sprite.Group()
+exit_group = pygame.sprite.Group()
 
 
 
-player = Soldier('raposa', 200, 200, 1.25, 5, 20)
-health_bar = HealthBar(10, 10, player.health, player.health)
-enemy = Soldier('inimigo', 500, 279, 1.25, 2, 20)
-enemy2 = Soldier('inimigo', 300, 279, 1.25, 2, 20)
-enemy_group.add(enemy)
-enemy_group.add(enemy2)
+# Criando uma lista de tile vazia
+world_data = []
+for row in range(ROWS):
+    r = [-1] * COLS
+    world_data.append(r)
+# carregando o arquivo de nivel e criando mundo
+with open(f'level{level}_data.csv', newline='') as csvfile:
+    reader = csv.reader(csvfile, delimiter=',')
+    for x, row in enumerate(reader):
+        for y, tile in enumerate(row):
+            world_data[x][y] = int(tile)
+world = World()
+player, health_bar = world.process_data(world_data)
+
 
 
 
@@ -325,7 +474,10 @@ while run:
 
     clock.tick(FPS)
 
+    # atualizando bg
     draw_bg()
+    # desenhando mundo
+    world.draw()
     # mostrando vida
     health_bar.draw(player.health)
     # mostrando munição
@@ -346,8 +498,14 @@ while run:
     # atualizando e desenhando grupos
     bullet_group.update()
     item_box_group.update()
+    decoration_group.update()
+    water_group.update()
+    exit_group.update()
     bullet_group.draw(screen)
     item_box_group.draw(screen)
+    decoration_group.draw(screen)
+    water_group.draw(screen)
+    exit_group.draw(screen)
     
     # atualizando ação do jogador
     if player.alive:
@@ -359,7 +517,12 @@ while run:
             player.update_action(1)# andando
         else:
             player.update_action(0)# parado
-        player.move(moving_left, moving_right)
+        screen_scroll = player.move(moving_left, moving_right)
+        bg_scroll -= screen_scroll
+
+    
+
+        
 
     for event in pygame.event.get():
         #quitgame

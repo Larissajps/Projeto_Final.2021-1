@@ -1,4 +1,3 @@
-#Projeto final - Design de Software
 #Equipe: Bruno Marques Li Volsi Falcao e Larissa Jordana de Paula Soares
 #Data: 09/06/2021
 
@@ -127,8 +126,8 @@ def reset_level():
 
 
 class Soldier(pygame.sprite.Sprite):
-    def __init__(self, char_type, x, y, scale, speed, ammo):
-        pygame.sprite.Sprite.__init__(self)
+    def _init_(self, char_type, x, y, scale, speed, ammo):
+        pygame.sprite.Sprite._init_(self)
         self.alive = True
         self.char_type = char_type
         self.speed = speed
@@ -459,8 +458,8 @@ class HealthBar():
         
 
 class Bullet(pygame.sprite.Sprite):
-    def __init__(self, x, y, direction):
-        pygame.sprite.Sprite.__init__(self)
+    def _init_(self, x, y, direction):
+        pygame.sprite.Sprite._init_(self)
         self.speed = 10
         self.image = bullet_img
         self.rect = self.image.get_rect()
@@ -500,7 +499,6 @@ class Button():
 
 	def draw(self, surface):
 		action = False
-
 		# posição do mouse
 		pos = pygame.mouse.get_pos()
 
@@ -530,8 +528,6 @@ decoration_group = pygame.sprite.Group()
 water_group = pygame.sprite.Group()
 exit_group = pygame.sprite.Group()
 
-
-
 # Criando uma lista de tile vazia
 world_data = []
 for row in range(ROWS):
@@ -546,6 +542,19 @@ with open(f'level{level}_data.csv', newline='') as csvfile:
 world = World()
 player, health_bar = world.process_data(world_data)
 
+# Criando uma lista de tile vazia
+world_data = []
+for row in range(ROWS):
+    r = [-1] * COLS
+    world_data.append(r)
+# carregando o arquivo de nivel e criando mundo
+with open(f'level{level}_data.csv', newline='') as csvfile:
+    reader = csv.reader(csvfile, delimiter=',')
+    for x, row in enumerate(reader):
+        for y, tile in enumerate(row):
+            world_data[x][y] = int(tile)
+world = World()
+player, health_bar = world.process_data(world_data)
 
 
 

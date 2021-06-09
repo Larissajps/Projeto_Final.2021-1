@@ -5,10 +5,12 @@
 # JOGO
 
 import pygame
+from pygame import mixer
 import os
 import random
 import csv
 
+mixer.init()
 pygame.init()
 
 SCREEN_WIDTH = 800
@@ -29,9 +31,11 @@ ROWS = 16
 COLS = 150
 TILE_SIZE = SCREEN_HEIGHT // ROWS 
 TILE_TYPES = 21
+MAX_LEVELS = 3
 screen_scroll = 0
 bg_scroll = 0
 level = 1
+start_game = False
 
 
 #define player action variables
@@ -39,7 +43,21 @@ moving_left = False
 moving_right = False
 shoot = False
 
+
+# musica e sons
+pygame.mixer.music.load('MUSIC/musica.mp3')
+pygame.mixer.music.set_volume(0.3)
+pygame.mixer.music.play(-1, 0.0, 7000)
+jump_fx = pygame.mixer.Sound('MUSIC/pulo.mp3')
+jump_fx.set_volume(0.3)
+shooting_fx = pygame.mixer.Sound('MUSIC/bomba.mp3')
+shooting_fx.set_volume(0.5)
 # imagens
+# Botões
+start_img = pygame.image.load('IMG/Inicio.png').convert_alpha()
+exit_img = pygame.image.load('IMG/Saida.png').convert_alpha()
+restart_img = pygame.image.load('IMG/Restart.png').convert_alpha()
+# Fundo
 pine1_img = pygame.image.load('IMG/Background/pine1.png').convert_alpha()
 pine2_img = pygame.image.load('IMG/Background/pine2.png').convert_alpha()
 mountain_img = pygame.image.load('IMG/Background/mountain.png').convert_alpha()
@@ -66,7 +84,7 @@ item_boxes = {
 
 
 #define colors
-BG = (144, 201, 120)
+BG = (255, 0, 0)
 RED = (255, 0, 0)
 WHITE = (255, 255, 255)
 GREEN = (0, 255, 0)
@@ -89,6 +107,22 @@ def draw_bg():
         screen.blit(pine1_img, ((x * width) - bg_scroll * 0.7,  SCREEN_HEIGHT - pine1_img.get_height() - 150))
         screen.blit(pine2_img, ((x * width) - bg_scroll * 0.8, SCREEN_HEIGHT - pine2_img.get_height()))
 
+# refazendo o level
+def reset_level():
+    enemy_group.empty()
+    bullet_group.empty()
+    item_box_group.empty()
+    decoration_group.empty()
+    water_group.empty()
+    exit_group.empty()
+
+    # criando lista de tile vazia
+    data = []
+    for row in range(ROWS):
+        r = [-1] * COLS
+        data.append(r)
+
+    return data
 
 
 
@@ -193,6 +227,19 @@ class Soldier(pygame.sprite.Sprite):
                     self.vel_y = 0
                     self.in_air = False
                     dy = tile[1].top - self.rect.bottom
+
+        # verificando colisão com a agua
+        if pygame.sprite.spritecollide(self, water_group, False):
+            self.health = 0
+
+        # verificando colisão com saida
+        level_complete = False
+        if pygame.sprite.spritecollide(self, exit_group, False):
+            level_complete = True
+
+        # verificando se o jogador caiu do mapa
+        if self.rect.bottom > SCREEN_HEIGHT:
+            self.health = 0
         
         # verificando se ta indo pra fora do extremo da tela
         if self.char_type == 'raposa':
@@ -209,7 +256,7 @@ class Soldier(pygame.sprite.Sprite):
                 self.rect.x -= dx
                 screen_scroll = -dx
 
-        return screen_scroll
+        return screen_scroll, level_complete
                 
 
     def shoot(self):
@@ -219,6 +266,7 @@ class Soldier(pygame.sprite.Sprite):
             bullet_group.add(bullet)
             # gastando munição
             self.ammo -= 1
+            shooting_fx.play()
     
     def ai(self):
         if self.alive and player.alive:
@@ -320,7 +368,7 @@ class World():
                         player = Soldier('raposa', x * TILE_SIZE, y * TILE_SIZE, 1.25, 5, 20)
                         health_bar = HealthBar(10, 10, player.health, player.health)
                     elif tile == 16: # criando inimigo
-                        enemy = Soldier('inimigo', 500, 279, 1.25, 2, 20)
+                        enemy = Soldier('inimigo',x * TILE_SIZE, y * TILE_SIZE, 1.25, 2, 20)
                         enemy_group.add(enemy)
                     elif tile == 17: # criando munição
                         item_box = ItemBox('Ammo', x * TILE_SIZE, y * TILE_SIZE)
@@ -441,7 +489,39 @@ class Bullet(pygame.sprite.Sprite):
                     enemy.health -= 25
                     self.kill()
 
+class Button():
+	def __init__(self,x, y, image, scale):
+		width = image.get_width()
+		height = image.get_height()
+		self.image = pygame.transform.scale(image, (int(width * scale), int(height * scale)))
+		self.rect = self.image.get_rect()
+		self.rect.topleft = (x, y)
+		self.clicked = False
 
+	def draw(self, surface):
+		action = False
+
+		# posição do mouse
+		pos = pygame.mouse.get_pos()
+
+		# verificando mouse em cima e clicks
+		if self.rect.collidepoint(pos):
+			if pygame.mouse.get_pressed()[0] == 1 and self.clicked == False:
+				action = True
+				self.clicked = True
+
+		if pygame.mouse.get_pressed()[0] == 0:
+			self.clicked = False
+
+		# desenhando botão
+		surface.blit(self.image, (self.rect.x, self.rect.y))
+
+		return action
+
+# Criando Botões
+start_button = Button(SCREEN_WIDTH // 2 - 130, SCREEN_HEIGHT // 2 - 150, start_img, 1)
+exit_button = Button(SCREEN_WIDTH // 2 - 110, SCREEN_HEIGHT // 2 + 50, exit_img, 1)
+restart_button = Button(SCREEN_WIDTH // 2 - 100, SCREEN_HEIGHT // 2 - 50, restart_img, 2)
 # criando sprite groups
 enemy_group = pygame.sprite.Group()
 bullet_group = pygame.sprite.Group()
@@ -474,53 +554,86 @@ while run:
 
     clock.tick(FPS)
 
-    # atualizando bg
-    draw_bg()
-    # desenhando mundo
-    world.draw()
-    # mostrando vida
-    health_bar.draw(player.health)
-    # mostrando munição
-    draw_text('Munição: ', font, WHITE, 10, 35)
-    for x in range(player.ammo):
-        screen.blit(bullet_img, (90 + (x * 10), 40))
-    
+    if start_game == False:
+        # desenhando menu
+        screen.fill(BG)
+        # add button
+        if start_button.draw(screen):
+            start_game = True
+        if exit_button.draw(screen):
+            run = False
+    else:
+        # atualizando bg
+        draw_bg()
+        # desenhando mundo
+        world.draw()
+        # mostrando vida
+        health_bar.draw(player.health)
+        # mostrando munição
+        draw_text('Munição: ', font, WHITE, 10, 35)
+        for x in range(player.ammo):
+            screen.blit(bullet_img, (90 + (x * 10), 40))
+        
 
-    
-    player.update()
-    player.draw()
+        
+        player.update()
+        player.draw()
 
-    for enemy in enemy_group:
-        enemy.ai()
-        enemy.update()
-        enemy.draw()
+        for enemy in enemy_group:
+            enemy.ai()
+            enemy.update()
+            enemy.draw()
 
-    # atualizando e desenhando grupos
-    bullet_group.update()
-    item_box_group.update()
-    decoration_group.update()
-    water_group.update()
-    exit_group.update()
-    bullet_group.draw(screen)
-    item_box_group.draw(screen)
-    decoration_group.draw(screen)
-    water_group.draw(screen)
-    exit_group.draw(screen)
-    
-    # atualizando ação do jogador
-    if player.alive:
-        if shoot:
-            player.shoot()
-        if player.in_air:
-            player.update_action(2)# pulo
-        elif moving_left or moving_right:
-            player.update_action(1)# andando
+        # atualizando e desenhando grupos
+        bullet_group.update()
+        item_box_group.update()
+        decoration_group.update()
+        water_group.update()
+        exit_group.update()
+        bullet_group.draw(screen)
+        item_box_group.draw(screen)
+        decoration_group.draw(screen)
+        water_group.draw(screen)
+        exit_group.draw(screen)
+        
+        # atualizando ação do jogador
+        if player.alive:
+            if shoot:
+                player.shoot()
+            if player.in_air:
+                player.update_action(2)# pulo
+            elif moving_left or moving_right:
+                player.update_action(1)# andando
+            else:
+                player.update_action(0)# parado
+            screen_scroll, level_complete = player.move(moving_left, moving_right)
+            bg_scroll -= screen_scroll
+            # verificando se jogador completou a fase
+            if level_complete:
+                level += 1
+                bg_scroll = 0
+                world_data = reset_level()
+                if level <= MAX_LEVELS:
+                    with open(f'level{level}_data.csv', newline='') as csvfile:
+                        reader = csv.reader(csvfile, delimiter=',')
+                        for x, row in enumerate(reader):
+                            for y, tile in enumerate(row):
+                                world_data[x][y] = int(tile)
+                    world = World()
+                    player, health_bar = world.process_data(world_data)
+
         else:
-            player.update_action(0)# parado
-        screen_scroll = player.move(moving_left, moving_right)
-        bg_scroll -= screen_scroll
-
-    
+            screen_scroll = 0
+            if restart_button.draw(screen):
+                bg_scroll = 0
+                world_data = reset_level()
+                with open(f'level{level}_data.csv', newline='') as csvfile:
+                    reader = csv.reader(csvfile, delimiter=',')
+                    for x, row in enumerate(reader):
+                        for y, tile in enumerate(row):
+                            world_data[x][y] = int(tile)
+                world = World()
+                player, health_bar = world.process_data(world_data)
 
         
 
@@ -537,7 +650,8 @@ while run:
             if event.key == pygame.K_SPACE:
                 shoot = True
             if event.key == pygame.K_w and player.alive:
-                player.jump = True    
+                player.jump = True
+                jump_fx.play()   
             if event.key == pygame.K_ESCAPE:
                 run = False
             

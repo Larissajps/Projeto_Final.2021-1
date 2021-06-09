@@ -341,7 +341,7 @@ class Soldier(pygame.sprite.Sprite):
         screen.blit(pygame.transform.flip(self.image, self.flip, False), self.rect)
 
 class World():
-    def _init_(self):
+    def __init__(self):
         self.obstacle_list = []
 
     def process_data(self, data):
@@ -388,8 +388,8 @@ class World():
             screen.blit(tile[0], tile[1])
 
 class Decoration(pygame.sprite.Sprite):
-    def _init_(self, img, x, y):
-        pygame.sprite.Sprite._init_(self)
+    def __init__(self, img, x, y):
+        pygame.sprite.Sprite.__init__(self)
         self.image = img
         self.rect = self.image.get_rect()
         self.rect.midtop = (x + TILE_SIZE // 2, y + (TILE_SIZE - self.image.get_height()))
@@ -398,8 +398,8 @@ class Decoration(pygame.sprite.Sprite):
         self.rect.x += screen_scroll    
 
 class Water(pygame.sprite.Sprite):
-    def _init_(self, img, x, y):
-        pygame.sprite.Sprite._init_(self)
+    def __init__(self, img, x, y):
+        pygame.sprite.Sprite.__init__(self)
         self.image = img
         self.rect = self.image.get_rect()
         self.rect.midtop = (x + TILE_SIZE // 2, y + (TILE_SIZE - self.image.get_height()))
@@ -408,8 +408,8 @@ class Water(pygame.sprite.Sprite):
         self.rect.x += screen_scroll
 
 class Exit(pygame.sprite.Sprite):
-    def _init_(self, img, x, y):
-        pygame.sprite.Sprite._init_(self)
+    def __init__(self, img, x, y):
+        pygame.sprite.Sprite.__init__(self)
         self.image = img
         self.rect = self.image.get_rect()
         self.rect.midtop = (x + TILE_SIZE // 2, y + (TILE_SIZE - self.image.get_height()))
@@ -418,8 +418,8 @@ class Exit(pygame.sprite.Sprite):
         self.rect.x += screen_scroll
 
 class ItemBox(pygame.sprite.Sprite):
-    def _init_(self, item_type, x, y):
-        pygame.sprite.Sprite._init_(self)
+    def __init__(self, item_type, x, y):
+        pygame.sprite.Sprite.__init__(self)
         self.item_type = item_type
         self.image = item_boxes[self.item_type]
         self.rect = self.image.get_rect()
@@ -441,7 +441,7 @@ class ItemBox(pygame.sprite.Sprite):
             self.kill()
 
 class HealthBar():
-    def _init_(self, x, y, health, max_health):
+    def __init__(self, x, y, health, max_health):
         self.x = x
         self.y = y
         self.health = health
@@ -489,7 +489,7 @@ class Bullet(pygame.sprite.Sprite):
                     self.kill()
 
 class Button():
-	def _init_(self,x, y, image, scale):
+	def __init__(self,x, y, image, scale):
 		width = image.get_width()
 		height = image.get_height()
 		self.image = pygame.transform.scale(image, (int(width * scale), int(height * scale)))
@@ -499,7 +499,6 @@ class Button():
 
 	def draw(self, surface):
 		action = False
-
 		# posição do mouse
 		pos = pygame.mouse.get_pos()
 
@@ -529,8 +528,6 @@ decoration_group = pygame.sprite.Group()
 water_group = pygame.sprite.Group()
 exit_group = pygame.sprite.Group()
 
-
-
 # Criando uma lista de tile vazia
 world_data = []
 for row in range(ROWS):
@@ -545,6 +542,19 @@ with open(f'level{level}_data.csv', newline='') as csvfile:
 world = World()
 player, health_bar = world.process_data(world_data)
 
+# Criando uma lista de tile vazia
+world_data = []
+for row in range(ROWS):
+    r = [-1] * COLS
+    world_data.append(r)
+# carregando o arquivo de nivel e criando mundo
+with open(f'level{level}_data.csv', newline='') as csvfile:
+    reader = csv.reader(csvfile, delimiter=',')
+    for x, row in enumerate(reader):
+        for y, tile in enumerate(row):
+            world_data[x][y] = int(tile)
+world = World()
+player, health_bar = world.process_data(world_data)
 
 
 

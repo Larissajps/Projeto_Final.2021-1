@@ -2,7 +2,7 @@
 Nome do Jogo: InsperEx
 Membros do Projeto: Bruno Falcão, Larissa Jordana de Paula 
 
-Bem Vindos ao jogo Insperex
+Bem Vindos ao jogo InsperEx
 
 O jogo é uma versão semelhante ao jogo mario bros 2.0. O Objetivo do jogo é a raposa MadFox conseguir passar dos níveis, tendo como obstáculo o alligator GV, assim, o nosso jogador pode passar pelas fases, matando o inimigo com uma bomba que ambos inimigo e jogador possuem mas para que a raposa possa ter mais chances de se manter viva, o mapa fornecera itens coletáveis como a munição sendo uma moeda e a vida sendo o símbolo da raposa.
 Como Jogar:

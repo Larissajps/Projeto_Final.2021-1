@@ -2,6 +2,19 @@
 #Data: 09/06/2021
 
 # JOGO InsperEx
+#     O jogo é uma versão semelhante ao  jogo mario bros 2.0. O Objetivo do jogo é a raposa MadFox conseguir 
+# passar dos níveis, tendo como obstáculo o alligator GV, assim, o nosso jogador pode passar pelas fases, 
+# matando o inimigo com uma bomba que ambos são atacados com o mesmo tipo de bomba, mas para que a raposa
+# possa ter mais chances de acordo com o mapa, ela vai encontrando itens como a moeda de munição para o ataque 
+# e para recuperar a sua vida tem o símbolo Insper que vem para curar a vida da raposa.
+# Como Jogar:
+# Para sua movimentação usar as teclas:
+# A = ir para trás
+# W = pular
+# D = ir pra frente
+# Para o uso da bomba somente clique em ‘’espaço’’ em seu teclado 
+# (as bombas tem uma determinada quantidade, use com sabedoria).
+
 
 import pygame
 from pygame import mixer
